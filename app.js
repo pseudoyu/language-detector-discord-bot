@@ -37,23 +37,6 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
   return res.status(400).json({ error: 'unknown interaction type' });
 });
 
-async function checkLinkPreview(url) {
-  try {
-    const response = await fetch(url);
-    const html = await response.text();
-    const titleMatch = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"[^>]*>/i) ||
-                      html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:title"[^>]*>/i);
-    if (titleMatch) {
-      const chinesePattern = /[\u4e00-\u9fff]+/;
-      return chinesePattern.test(titleMatch[1]);
-    }
-    return false;
-  } catch (err) {
-    console.error('Error checking link preview:', err);
-    return false;
-  }
-}
-
 async function monitorChannels() {
   console.log('Starting channel monitoring cycle...');
   for (const channelId of MONITORED_CHANNELS) {
@@ -67,10 +50,6 @@ async function monitorChannels() {
 
       for (const message of messages) {
         const chinesePattern = /[\u4e00-\u9fff]+/;
-        const urlPattern = /(https?:\/\/[^\s]+)/g;
-        const urls = message.content.match(urlPattern);
-
-        let shouldDelete = false;
 
         // Check for Chinese content
         if (chinesePattern.test(message.content)) {
@@ -80,26 +59,7 @@ async function monitorChannels() {
             author: message.author.username,
             content: message.content
           });
-          shouldDelete = true;
-        }
 
-        // Check URLs for Chinese previews
-        if (urls && !shouldDelete) {
-          for (const url of urls) {
-            const hasChinesePreview = await checkLinkPreview(url);
-            if (hasChinesePreview) {
-              console.log(`Chinese preview detected for URL:`, {
-                channelId,
-                messageId: message.id,
-                url
-              });
-              shouldDelete = true;
-              break;
-            }
-          }
-        }
-
-        if (shouldDelete) {
           try {
             await DiscordRequest(`channels/${channelId}/messages/${message.id}`, { method: 'DELETE' });
             console.log(`Successfully deleted message ${message.id} from channel ${channelId}`);
