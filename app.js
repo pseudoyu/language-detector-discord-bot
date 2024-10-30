@@ -44,8 +44,8 @@ async function checkLinkPreview(url) {
     const titleMatch = html.match(/<meta[^>]*property="og:title"[^>]*content="([^"]*)"[^>]*>/i) ||
                       html.match(/<meta[^>]*content="([^"]*)"[^>]*property="og:title"[^>]*>/i);
     if (titleMatch) {
-      const nonEnglishPattern = /[^\x00-\x7F]+/;
-      return nonEnglishPattern.test(titleMatch[1]);
+      const chinesePattern = /[\u4e00-\u9fff]+/;
+      return chinesePattern.test(titleMatch[1]);
     }
     return false;
   } catch (err) {
@@ -66,15 +66,15 @@ async function monitorChannels() {
       console.log(`Found ${messages.length} messages in channel ${channelId}`);
 
       for (const message of messages) {
-        const nonEnglishPattern = /[^\x00-\x7F]+/;
+        const chinesePattern = /[\u4e00-\u9fff]+/;
         const urlPattern = /(https?:\/\/[^\s]+)/g;
         const urls = message.content.match(urlPattern);
 
         let shouldDelete = false;
 
-        // Check for non-English content
-        if (nonEnglishPattern.test(message.content)) {
-          console.log(`Non-English content detected in message:`, {
+        // Check for Chinese content
+        if (chinesePattern.test(message.content)) {
+          console.log(`Chinese content detected in message:`, {
             channelId,
             messageId: message.id,
             author: message.author.username,
@@ -83,12 +83,12 @@ async function monitorChannels() {
           shouldDelete = true;
         }
 
-        // Check URLs for non-English previews
+        // Check URLs for Chinese previews
         if (urls && !shouldDelete) {
           for (const url of urls) {
-            const hasNonEnglishPreview = await checkLinkPreview(url);
-            if (hasNonEnglishPreview) {
-              console.log(`Non-English preview detected for URL:`, {
+            const hasChinesePreview = await checkLinkPreview(url);
+            if (hasChinesePreview) {
+              console.log(`Chinese preview detected for URL:`, {
                 channelId,
                 messageId: message.id,
                 url
