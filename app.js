@@ -38,15 +38,11 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
 });
 
 async function monitorChannels() {
-  console.log('Starting channel monitoring cycle...');
   for (const channelId of MONITORED_CHANNELS) {
     try {
-      console.log(`Checking channel ${channelId}...`);
       const endpoint = `channels/${channelId}/messages`;
       const response = await DiscordRequest(endpoint, { method: 'GET' });
       const messages = await response.json();
-
-      console.log(`Found ${messages.length} messages in channel ${channelId}`);
 
       for (const message of messages) {
         const chinesePattern = /[\u4e00-\u9fff]+/;
@@ -79,7 +75,6 @@ async function monitorChannels() {
       });
     }
   }
-  console.log('Finished channel monitoring cycle');
 }
 
 app.listen(PORT, () => {
