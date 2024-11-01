@@ -37,7 +37,22 @@ app.post('/interactions', verifyKeyMiddleware(process.env.PUBLIC_KEY), async fun
   return res.status(400).json({ error: 'unknown interaction type' });
 });
 
-async function monitorChannels() {
+const chinesePattern = /[\u4e00-\u9fff]+/;
+
+async function deleteMessage(channelId, messageId) {
+  try {
+    await DiscordRequest(`channels/${channelId}/messages/${messageId}`, { method: 'DELETE' });
+    console.log(`Successfully deleted message ${messageId} from channel ${channelId}`);
+  } catch (err) {
+    console.error('Error deleting message:', {
+      channelId,
+      messageId,
+      error: err.message
+    });
+  }
+}
+
+async function monitorRegularChannels() {
   for (const channelId of MONITORED_CHANNELS) {
     try {
       const endpoint = `channels/${channelId}/messages`;
@@ -45,31 +60,19 @@ async function monitorChannels() {
       const messages = await response.json();
 
       for (const message of messages) {
-        const chinesePattern = /[\u4e00-\u9fff]+/;
-
-        // Check for Chinese content
         if (chinesePattern.test(message.content)) {
-          console.log(`Chinese content detected in message:`, {
+          console.log(`Chinese content detected in regular channel message:`, {
             channelId,
             messageId: message.id,
             author: message.author.username,
             content: message.content
           });
 
-          try {
-            await DiscordRequest(`channels/${channelId}/messages/${message.id}`, { method: 'DELETE' });
-            console.log(`Successfully deleted message ${message.id} from channel ${channelId}`);
-          } catch (err) {
-            console.error('Error deleting message:', {
-              channelId,
-              messageId: message.id,
-              error: err.message
-            });
-          }
+          await deleteMessage(channelId, message.id);
         }
       }
     } catch (err) {
-      console.error(`Error monitoring channel ${channelId}:`, {
+      console.error(`Error monitoring regular channel ${channelId}:`, {
         error: err.message,
         stack: err.stack
       });
@@ -77,10 +80,14 @@ async function monitorChannels() {
   }
 }
 
+function startMonitoring() {
+  monitorRegularChannels();
+  setInterval(monitorRegularChannels, 30000);
+}
+
 app.listen(PORT, () => {
   console.log('Listening on port', PORT);
   console.log('Bot invite link:', generateInviteLink(process.env.APP_ID));
 
-  monitorChannels();
-  setInterval(monitorChannels, 30000);
+  startMonitoring();
 });
